@@ -1,5 +1,7 @@
 build/*
 devel/*
+logs/*
+.catkin_tools/*
 *.swp
 *.swo
 *.pyc

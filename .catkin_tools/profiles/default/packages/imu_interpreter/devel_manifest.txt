@@ -1,5 +1,0 @@
-imu_interpreter
-"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/imu_interpreter/cmake.lock" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/./cmake.lock"
-"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/imu_interpreter/share/imu_interpreter/cmake/imu_interpreterConfig.cmake" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/share/imu_interpreter/cmake/imu_interpreterConfig.cmake"
-"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/imu_interpreter/share/imu_interpreter/cmake/imu_interpreterConfig-version.cmake" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/share/imu_interpreter/cmake/imu_interpreterConfig-version.cmake"
-"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/imu_interpreter/lib/pkgconfig/imu_interpreter.pc" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/lib/pkgconfig/imu_interpreter.pc"

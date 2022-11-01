@@ -1,5 +1,0 @@
-goto
-"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/goto/cmake.lock" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/./cmake.lock"
-"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/goto/share/goto/cmake/gotoConfig.cmake" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/share/goto/cmake/gotoConfig.cmake"
-"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/goto/share/goto/cmake/gotoConfig-version.cmake" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/share/goto/cmake/gotoConfig-version.cmake"
-"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/goto/lib/pkgconfig/goto.pc" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/lib/pkgconfig/goto.pc"
