@@ -1,0 +1,5 @@
+brink
+"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/brink/cmake.lock" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/./cmake.lock"
+"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/brink/share/brink/cmake/brinkConfig-version.cmake" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/share/brink/cmake/brinkConfig-version.cmake"
+"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/brink/share/brink/cmake/brinkConfig.cmake" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/share/brink/cmake/brinkConfig.cmake"
+"/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/.private/brink/lib/pkgconfig/brink.pc" "/home/eric/Documents/CMU/Space Robotics/RoverDrive-Brinkmanship/devel/lib/pkgconfig/brink.pc"
