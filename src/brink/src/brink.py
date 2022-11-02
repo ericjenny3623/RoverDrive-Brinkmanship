@@ -21,6 +21,7 @@ hull_pub = rospy.Publisher('/brink/out/hull', PolygonStamped, queue_size=10)
 lines_pub = rospy.Publisher('/brink/out/lines', Marker, queue_size=10)
 range_pub = rospy.Publisher('/brink/out/range', Float64, queue_size=10)
 range_text_pub = rospy.Publisher('/brink/out/range_text', Marker, queue_size=10)
+slope_pub = rospy.Publisher('/brink/out/slope', PointCloud2, queue_size=10)
 
 class tfSource:
     def __init__(self):
@@ -42,7 +43,6 @@ class Brinkmanship:
         self.tf_source = tfSource()
         self.odom_frame_id = odom_frame_id
         self.filter_size = filter_size
-
         self.cloud_sub = rospy.Subscriber('/brink/in/cloud', PointCloud2, self.cloud_handler)
 
     def msg2np(self, msg):
@@ -127,6 +127,14 @@ class Brinkmanship:
         if pcl_pts.size < 10:
           return
 
+        # Compute normals (slope) of downsampled point cloud
+        search_radius = 0.15;
+        norm = pcl_pts.make_NormalEstimation()
+        tree = pcl_pts.make_kdtree()
+        norm.set_SearchMethod(tree)
+        norm.set_RadiusSearch(search_radius)
+        slopes = norm.compute()
+
         # RANSAC fit a plane
         seg = pcl_pts.make_segmenter_normals(ksearch=50)
         seg.set_optimize_coefficients(True)
@@ -145,6 +153,12 @@ class Brinkmanship:
 
         if( model[2] > 0.0 ):
             model *= -1
+        
+        # Publish slopes
+        slope_msg = ros_numpy.msgify(PointCloud2, slopes)
+        slope_msg.header = msg.header
+        slope_msg.header.frame_id = camera_frame_id
+        slope_pub.publish(slope_msg)
 
         # Publish the plane polygon
         (A, B, C, D) = (model[0], model[1], model[2], model[3])
@@ -265,8 +279,6 @@ class Brinkmanship:
           hull_pub.publish(hull_msg)
         except:
             pass
-
-
 
 if __name__=="__main__":
     rospy.init_node('brink')
