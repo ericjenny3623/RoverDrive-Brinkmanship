@@ -247,20 +247,20 @@ class Brinkmanship:
           range_text_msg.type = 9
 
           # Normally white.
-          range_text_msg.color.r = 1.0;
-          range_text_msg.color.g = 1.0;
-          range_text_msg.color.b = 1.0;
-          range_text_msg.color.a = 1.0;
+          range_text_msg.color.r = 1.0
+          range_text_msg.color.g = 1.0
+          range_text_msg.color.b = 1.0
+          range_text_msg.color.a = 1.0
       
           # Yellow if getting worried. Red if way too close!
           if brink_range < 0.2:
-            range_text_msg.color.g = 0.0;
-            range_text_msg.color.b = 0.0;
+            range_text_msg.color.g = 0.0
+            range_text_msg.color.b = 0.0
           elif brink_range < 0.5:
             range_text_msg.color.b = 0.0
 
-          range_text_msg.scale.z = 0.25;
-          range_text_msg.pose.position.z = 1.5;
+          range_text_msg.scale.z = 0.25
+          range_text_msg.pose.position.z = 1.5
           range_text_msg.text = "BRINK: {:03f} m".format(brink_range)
           range_text_pub.publish(range_text_msg)
 

@@ -3,6 +3,7 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Twist.h>
 #include <fmt/format.h>
+#include <string>
 
 double rpm_to_rad_per_sec(const double rpm) {
   return rpm * 2*M_PI / 60.0;
@@ -42,6 +43,9 @@ int main(int argc, char** argv) {
   // Create a publisher for the wheel odometry.
   auto wheel_odom_pub = nh.advertise<nav_msgs::Odometry>("/pitranger/out/wheel_odom", 100);
 
+  // Publish wheel encoder and current data along with wheel odometry
+  auto wheel_data_pub = nh.advertise<diagnostic_msgs::DiagnosticArray>("/pitranger/out/wheel_data", 1);
+
   // Track the robot state in x,y,yaw.
   double robot_x   = 0.0;
   double robot_y   = 0.0;
@@ -53,8 +57,8 @@ int main(int argc, char** argv) {
   ros::Rate rate(10);
   unsigned long iter = 0;
   while( ros::ok() ) {
-    // Compute wheel odometry and publish it.
     try {
+      // Compute and publish wheel odometry
       const double fr_rpm = wheels.get_front_right_rpm();
       const double fl_rpm = wheels.get_front_left_rpm();
       const double rr_rpm = wheels.get_rear_right_rpm();
@@ -133,6 +137,59 @@ int main(int argc, char** argv) {
       msg.twist.covariance[5*6+5] = 0.3;        // Yaw-to-Yaw
 
       wheel_odom_pub.publish(msg);
+
+      // Publish miscellaneous wheel data
+      const int fr_enc = wheels.get_front_right_encoder();
+      const int fl_enc = wheels.get_front_left_encoder();
+      const int rr_enc = wheels.get_rear_right_encoder();
+      const int rl_enc = wheels.get_rear_left_encoder();
+      diagnostic_msgs::KeyValue fr_enc_kv;
+      diagnostic_msgs::KeyValue fl_enc_kv;
+      diagnostic_msgs::KeyValue rr_enc_kv;
+      diagnostic_msgs::KeyValue rl_enc_kv;
+      fr_enc_kv.key = 'FR Encoder';
+      fl_enc_kv.key = 'FL Encoder';
+      rr_enc_kv.key = 'RR Encoder';
+      rl_enc_kv.key = 'RL Encoder';
+      fr_enc_kv.value = std::tostring(fr_enc);
+      fl_enc_kv.value = std::tostring(fl_enc);
+      rr_enc_kv.value = std::tostring(rr_enc);
+      rl_enc_kv.value = std::tostring(rl_enc);
+
+      const double fr_current = wheels.get_front_right_amps();
+      const double fl_current = wheels.get_front_left_amps();
+      const double rr_current = wheels.get_rear_right_amps();
+      const double rl_current = wheels.get_rear_left_amps();
+      diagnostic_msgs::KeyValue fr_curr_kv;
+      diagnostic_msgs::KeyValue fl_curr_kv;
+      diagnostic_msgs::KeyValue rr_curr_kv;
+      diagnostic_msgs::KeyValue rl_curr_kv;
+      fr_curr_kv.key = 'FR Current';
+      fl_curr_kv.key = 'FL Current';
+      rr_curr_kv.key = 'RR Current';
+      rl_curr_kv.key = 'RL Current';
+      fr_curr_kv.value = std::tostring(fr_current);
+      fl_curr_kv.value = std::tostring(fl_current);
+      rr_curr_kv.value = std::tostring(rr_current);
+      rl_curr_kv.value = std::tostring(rl_current);
+
+      diagnostic_msgs::DiagnosticArray data_msg;
+      data_msg.header.seq = iter++;
+      data_msg.header.stamp = ros::Time::now();
+      data_msg.header.frame_id = wheel_odom_frame_id;
+
+      diagnostic_msgs::DiagnosticStatus enc_status;
+      enc_status.name = 'Wheel Encoder';
+      enc_status.message = 'FR FL RR RL';
+      enc_status.values = {fr_enc_kv, fl_enc_kv, rr_enc_kv, rl_enc_kv};
+
+      diagnostic_msgs::DiagnosticStatus current_status;
+      current_status.name = 'Wheel Current';
+      current_status.message = 'Measured in amps. FR FL RR RL';
+      current_status.values = {fr_curr_kv, fl_curr_kv, rr_curr_kv, rl_curr_kv};
+
+      data_msg.status = {enc_status, current_status};
+      wheel_data_pub.publish(data_msg);
     } catch (const std::exception& e) {
       fmt::print("WARNING: {}", e.what());
     }
