@@ -125,8 +125,10 @@ class Brinkmanship:
 
         # Give up if the point cloud is empty
         if pcl_pts.size < 10:
-          return
+            print("PC empty")
+            return
 
+        # https://pcl.readthedocs.io/en/latest/normal_estimation.html#normal-estimation
         # Compute normals (slope) of downsampled point cloud
         search_radius = 0.15;
         norm = pcl_pts.make_NormalEstimation()
@@ -153,9 +155,10 @@ class Brinkmanship:
 
         if( model[2] > 0.0 ):
             model *= -1
-        
+
+        # NEW
         # Publish slopes
-        slope_msg = ros_numpy.msgify(PointCloud2, slopes)
+        slope_msg = self.np2msg(slopes)
         slope_msg.header = msg.header
         slope_msg.header.frame_id = camera_frame_id
         slope_pub.publish(slope_msg)
@@ -240,7 +243,7 @@ class Brinkmanship:
           dists = [np.linalg.norm(np.array([l[0][0]-l[1][0],l[0][1]-l[1][1]])) for l in lines]
           brink_range = np.min(dists)
           range_pub.publish(brink_range)
-          
+
           # Publish a string version of the estimated range to a brink (for rviz).
           range_text_msg = Marker()
           range_text_msg.header.frame_id = "base_link"
@@ -251,7 +254,7 @@ class Brinkmanship:
           range_text_msg.color.g = 1.0
           range_text_msg.color.b = 1.0
           range_text_msg.color.a = 1.0
-      
+
           # Yellow if getting worried. Red if way too close!
           if brink_range < 0.2:
             range_text_msg.color.g = 0.0
