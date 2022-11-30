@@ -48,6 +48,8 @@ m.origin.position.x = x_bins[0]
 m.origin.position.y = y_bins[0]
 map_meta_data = m
 
+MAX_SLOPE = 10.0 # degrees
+
 def int8ToSlope(x):
     return x.astype(float) - 50 * 0.5
 
@@ -190,22 +192,21 @@ class Brinkmanship:
 
         # Save our slopes in a map
         slopes = np.zeros((numY, numX))
-        seen = np.zeros((numY, numX), dtype=bool)
+        counts = np.zeros_like(slopes)
 
         # Bin the slopes by the pts positions
         for xI, yI in zip(xInds, yInds):
-            if xI >= numX or yI >= numY:
-                continue
-            if seen[yI, xI]:
+            if xI >= numX or yI >= numY or counts[yI, xI] != 0:
                 continue
 
             inds = np.logical_and(xInds == xI, yInds == yI)
             inds = np.logical_and(inds, np.logical_not(np.isnan(angles)))
-            # print(inds)
+
             cellAngles = angles[inds]
             slopes[yI, xI] = np.mean(cellAngles)
-            seen[yI, xI] = True
+            counts[yI, xI] = inds.shape[0]
         degrees = np.rad2deg(slopes)
+        print(degrees)
         mapSlopes = slopeToInt8(degrees)
         mapFlat = mapSlopes.flatten()
 
@@ -215,6 +216,17 @@ class Brinkmanship:
         gridMsg.info = map_meta_data
         gridMsg.data = mapFlat
         map_pub.publish(gridMsg)
+
+        goodLines = np.nonzero(np.sum(counts, axis=1))
+        valid = slopes[goodLines,:]
+        safe = degrees > MAX_SLOPE & counts == 0
+        distances = x_bins[np.argmax(safe, axis=1)]
+        brink_range = distances.min()
+
+        self.pubRange(brink_range)
+
+    def brinkOld(self, pcl_pts, msg):
+        camera_frame_id = msg.header.frame_id
 
         # RANSAC fit a plane
         seg = pcl_pts.make_segmenter_normals(ksearch=50)
@@ -311,53 +323,58 @@ class Brinkmanship:
         lines_pub.publish(lines_msg)
 
         try:
-          # Publish the estimated range to a brink.
-          dists = [np.linalg.norm(np.array([l[0][0]-l[1][0],l[0][1]-l[1][1]])) for l in lines]
-          brink_range = np.min(dists)
-          range_pub.publish(brink_range)
+            # Publish the estimated range to a brink.
+            dists = [np.linalg.norm(np.array([l[0][0]-l[1][0],l[0][1]-l[1][1]])) for l in lines]
+            brink_range = np.min(dists)
 
-          # Publish a string version of the estimated range to a brink (for rviz).
-          range_text_msg = Marker()
-          range_text_msg.header.frame_id = "base_link"
-          range_text_msg.type = 9
+            self.pubRange(brink_range)
 
-          # Normally white.
-          range_text_msg.color.r = 1.0
-          range_text_msg.color.g = 1.0
-          range_text_msg.color.b = 1.0
-          range_text_msg.color.a = 1.0
+            # Put 2d alpha shape back in the camera_frame and publish it as a polygon.
+            hull_msg = PolygonStamped()
+            hull_msg.header = msg.header
+            hull_msg.header.frame_id = camera_frame_id
 
-          # Yellow if getting worried. Red if way too close!
-          if brink_range < 0.2:
-            range_text_msg.color.g = 0.0
-            range_text_msg.color.b = 0.0
-          elif brink_range < 0.5:
-            range_text_msg.color.b = 0.0
-
-          range_text_msg.scale.z = 0.25
-          range_text_msg.pose.position.z = 1.5
-          range_text_msg.text = "BRINK: {:03f} m".format(brink_range)
-          range_text_pub.publish(range_text_msg)
-
-          # Put 2d alpha shape back in the camera_frame and publish it as a polygon.
-          hull_msg = PolygonStamped()
-          hull_msg.header = msg.header
-          hull_msg.header.frame_id = camera_frame_id
-
-          xs = concave_hull.exterior.coords.xy[0]
-          ys = concave_hull.exterior.coords.xy[1]
-          for x,y in zip(xs,ys):
-              xyz = np.array([x,y,0]).transpose()
-              xyz = xyz.dot(inv_basis)
-              xyz += orig
-              hull_msg.polygon.points.append(Point32(xyz[0], xyz[1], xyz[2]))
-          hull_pub.publish(hull_msg)
+            xs = concave_hull.exterior.coords.xy[0]
+            ys = concave_hull.exterior.coords.xy[1]
+            for x, y in zip(xs, ys):
+                xyz = np.array([x, y, 0]).transpose()
+                xyz = xyz.dot(inv_basis)
+                xyz += orig
+                hull_msg.polygon.points.append(Point32(xyz[0], xyz[1], xyz[2]))
+            hull_pub.publish(hull_msg)
         except:
             pass
+
+    def pubRange(self, brink_range):
+        range_pub.publish(brink_range)
+
+        # Publish a string version of the estimated range to a brink (for rviz).
+        range_text_msg = Marker()
+        range_text_msg.header.frame_id = "base_link"
+        range_text_msg.type = 9
+
+        # Normally white.
+        range_text_msg.color.r = 1.0
+        range_text_msg.color.g = 1.0
+        range_text_msg.color.b = 1.0
+        range_text_msg.color.a = 1.0
+
+        # Yellow if getting worried. Red if way too close!
+        if brink_range < 0.2:
+            range_text_msg.color.g = 0.0
+            range_text_msg.color.b = 0.0
+        elif brink_range < 0.5:
+            range_text_msg.color.b = 0.0
+
+        range_text_msg.scale.z = 0.25
+        range_text_msg.pose.position.z = 1.5
+        range_text_msg.text = "BRINK: {:03f} m".format(brink_range)
+        range_text_pub.publish(range_text_msg)
+
 
 if __name__=="__main__":
     rospy.init_node('brink')
 
-    brink = Brinkmanship(odom_frame_id='upright', filter_size=[0.1,0.1,0.1])
+    brink = Brinkmanship(odom_frame_id='upright', filter_size=[0.025,0.025,0.025])
 
     rospy.spin()
