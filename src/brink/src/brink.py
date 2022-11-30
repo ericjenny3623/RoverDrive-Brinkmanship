@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import rospy
 from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import Float64
-from geometry_msgs.msg import PolygonStamped, Point, Point32
+from std_msgs.msg import Float64, Header
+from geometry_msgs.msg import PolygonStamped, Point, Point32, Pose
 from visualization_msgs.msg import Marker
+from nav_msgs.msg import OccupancyGrid, MapMetaData
 import time
 
 import tf2_ros
@@ -21,7 +22,37 @@ hull_pub = rospy.Publisher('/brink/out/hull', PolygonStamped, queue_size=10)
 lines_pub = rospy.Publisher('/brink/out/lines', Marker, queue_size=10)
 range_pub = rospy.Publisher('/brink/out/range', Float64, queue_size=10)
 range_text_pub = rospy.Publisher('/brink/out/range_text', Marker, queue_size=10)
-slope_pub = rospy.Publisher('/brink/out/slope', PointCloud2, queue_size=10)
+tidied_pub = rospy.Publisher('/brink/out/tidied', PointCloud2, queue_size=10)
+map_pub = rospy.Publisher('/brink/out/slope_map', OccupancyGrid, queue_size=10)
+
+# X is going away from camera, Y to left
+height = 1.0  # m
+
+x_min = 0.0
+x_max = 1.5
+width = x_max - x_min
+
+cell_size = 1/16
+numY = np.ceil(height/cell_size).astype(int)
+y_bins = np.linspace(0., height, num=numY) - height*0.5
+
+numX = np.ceil(width/cell_size).astype(int)
+x_bins = np.linspace(x_min, x_max, num=numX)
+
+m = MapMetaData()
+m.resolution = cell_size
+m.width = numX
+m.height = numY
+m.origin = Pose()
+m.origin.position.x = x_bins[0]
+m.origin.position.y = y_bins[0]
+map_meta_data = m
+
+def int8ToSlope(x):
+    return x.astype(float) - 50 * 0.5
+
+def slopeToInt8(x):
+    return np.clip((x * 2 + 50).astype(int), -128, 127)
 
 class tfSource:
     def __init__(self):
@@ -66,22 +97,26 @@ class Brinkmanship:
         return msg
 
     def orient_cloud(self, pts, odom_frame_id, camera_frame_id):
+        """ This is supposed to transform the points into the frame of the robot? """
+        # If so, we really want to transform points from camera to robot-world oriented
         tf = self.tf_source.lookup(odom_frame_id, camera_frame_id)
+
+        if tf is None:
+            print(f"Brinkmanship failed to find transform from {camera_frame_id} to {odom_frame_id}.")
+            # Better handle this...
+            return None
 
         R = tf[0].rotation_matrix
         T = tf[1]
 
-        if tf is None:
-            print("Brinkmanship failed to find transform from camera to odom.")
-            # Better handle this...
-            return None
-
         h = pts.shape[0]
         w = pts.shape[1]
-        pts = pts.reshape((w*h, 3))
+        # NOTE: Seems like this was designed for an ordered PC, but maybe the voxel grid
+        # filter unorders things (or its just to_array causing the issue``)
+        # pts = pts.reshape((w*h, 3))
         pts = np.dot(R, pts.transpose()).transpose()
         pts += T
-        pts = pts.reshape((h,w,3))
+        # pts = pts.reshape((h,w,3))
         return pts
 
     def ray_plane_intersection(self, ray_orig, ray_dir, coeffs):
@@ -128,14 +163,58 @@ class Brinkmanship:
             print("PC empty")
             return
 
+        oriented_pts = self.orient_cloud(pcl_pts.to_array(), self.odom_frame_id, camera_frame_id)
+        if oriented_pts is None:
+            return
+        oriented_pcl = pcl.PointCloud()
+        oriented_pcl.from_array(oriented_pts.astype(np.float32))
+        tidied_msg = self.np2msg(oriented_pts)
+        tidied_msg.header = msg.header
+        tidied_msg.header.frame_id = self.odom_frame_id
+        tidied_pub.publish(tidied_msg)
+
         # https://pcl.readthedocs.io/en/latest/normal_estimation.html#normal-estimation
         # Compute normals (slope) of downsampled point cloud
+        # TODO: maybe this should be ran on the non downsampled PC
         search_radius = 0.15;
-        norm = pcl_pts.make_NormalEstimation()
-        tree = pcl_pts.make_kdtree()
+        norm = oriented_pcl.make_NormalEstimation()
+        tree = oriented_pcl.make_kdtree()
         norm.set_SearchMethod(tree)
         norm.set_RadiusSearch(search_radius)
-        slopes = norm.compute()
+        normals = norm.compute().to_array()
+        #angle with respect to z unit vector
+        angles = np.arccos(normals[:, 2] / np.linalg.norm(normals[:,:3], axis=1))
+
+        xInds = np.digitize(oriented_pts[:,0], x_bins)
+        yInds = np.digitize(oriented_pts[:,1], y_bins)
+
+        # Save our slopes in a map
+        slopes = np.zeros((numY, numX))
+        seen = np.zeros((numY, numX), dtype=bool)
+
+        # Bin the slopes by the pts positions
+        for xI, yI in zip(xInds, yInds):
+            if xI >= numX or yI >= numY:
+                continue
+            if seen[yI, xI]:
+                continue
+
+            inds = np.logical_and(xInds == xI, yInds == yI)
+            inds = np.logical_and(inds, np.logical_not(np.isnan(angles)))
+            # print(inds)
+            cellAngles = angles[inds]
+            slopes[yI, xI] = np.mean(cellAngles)
+            seen[yI, xI] = True
+        degrees = np.rad2deg(slopes)
+        mapSlopes = slopeToInt8(degrees)
+        mapFlat = mapSlopes.flatten()
+
+        # Publish the map
+        gridMsg = OccupancyGrid()
+        gridMsg.header = tidied_msg.header
+        gridMsg.info = map_meta_data
+        gridMsg.data = mapFlat
+        map_pub.publish(gridMsg)
 
         # RANSAC fit a plane
         seg = pcl_pts.make_segmenter_normals(ksearch=50)
@@ -155,13 +234,6 @@ class Brinkmanship:
 
         if( model[2] > 0.0 ):
             model *= -1
-
-        # NEW
-        # Publish slopes
-        slope_msg = self.np2msg(slopes)
-        slope_msg.header = msg.header
-        slope_msg.header.frame_id = camera_frame_id
-        slope_pub.publish(slope_msg)
 
         # Publish the plane polygon
         (A, B, C, D) = (model[0], model[1], model[2], model[3])
@@ -286,6 +358,6 @@ class Brinkmanship:
 if __name__=="__main__":
     rospy.init_node('brink')
 
-    brink = Brinkmanship(odom_frame_id='odom', filter_size=[0.1,0.1,0.1])
+    brink = Brinkmanship(odom_frame_id='upright', filter_size=[0.1,0.1,0.1])
 
     rospy.spin()

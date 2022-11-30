@@ -12,6 +12,7 @@
     <arg name="enable_gyro"           value="true"/>
     <arg name="enable_accel"          value="true"/>
     <arg name="enable_pose"           value="true"/>
+    <arg name="tf_publish_rate"       value="1"/>
     <!-- <arg name="unite_imu_method"      value="linear_interpolation"/> -->
 
     <arg name="depth_fps"             value="6"/>
@@ -23,6 +24,8 @@
     <arg name="color_height"          value="720"/>
   </include>
 
-  <node pkg="tf2_ros" type="static_transform_publisher" name="camera_to_footprint_broadcaster" args="0.249 0.045 0.098 1.570796 0 -2.3038346 camera_link oriented_footprint"/>
+  <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="camera_to_footprint_broadcaster" args="0.249 0.045 0.098 1.570796 0 -2.3038346 rs_front_link oriented_footprint"/> -->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_rs_front_broadcaster" args="0.25 0 0.24 0 0.7679 0 base_link rs_front_link"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="orientation_broadcaster" args="0 0 0  0 0.1 0 upright base_link"/>
 
 </launch>
