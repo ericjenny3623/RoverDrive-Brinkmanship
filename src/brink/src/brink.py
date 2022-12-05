@@ -162,7 +162,7 @@ class Brinkmanship:
 
         # Give up if the point cloud is empty
         if pcl_pts.size < 10:
-            print("PC empty")
+            # print("PC empty")
             return
 
         oriented_pts = self.orient_cloud(pcl_pts.to_array(), self.odom_frame_id, camera_frame_id)
@@ -217,16 +217,14 @@ class Brinkmanship:
         map_pub.publish(gridMsg)
 
         goodLines = np.sum(counts, axis=1) > 1
-        valid = slopes[goodLines,:]
-        safe = np.logical_and(degrees < MAX_SLOPE, counts != 0)
-        distances = x_bins[np.argmax(safe, axis=1)]
+        valid = degrees[goodLines,:]
+        validCells = counts[goodLines, :] != 0
+        safe = np.logical_and(valid < MAX_SLOPE, validCells)
+        minDists = np.argmax(safe, axis=1)
+        cols = np.indices(valid.shape)[1]
+        safe[cols < minDists[:,None]] = True # Extend safe to closer
+        distances = x_bins[np.argmin(safe, axis=1)]
         brink_range = distances.min()
-        # print(degrees)
-        # print(goodLines)
-        # print(valid)
-        # print(safe)
-        # print(distances)
-
         self.pubRange(brink_range)
 
     def brinkOld(self, pcl_pts, msg):
@@ -371,7 +369,7 @@ class Brinkmanship:
             range_text_msg.color.b = 0.0
 
         range_text_msg.scale.z = 0.25
-        range_text_msg.pose.position.z = 1.5
+        range_text_msg.pose.position.z = 1.0
         range_text_msg.text = "BRINK: {:03f} m".format(brink_range)
         range_text_pub.publish(range_text_msg)
 
@@ -379,6 +377,6 @@ class Brinkmanship:
 if __name__=="__main__":
     rospy.init_node('brink')
 
-    brink = Brinkmanship(odom_frame_id='upright', filter_size=[0.025,0.025,0.025])
+    brink = Brinkmanship(odom_frame_id='base_link', filter_size=[0.025,0.025,0.025])
 
     rospy.spin()
