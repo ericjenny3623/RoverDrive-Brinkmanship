@@ -2,6 +2,8 @@
 
   <include file="$(find brink)/launch/brink.launch"/>
 
+  <include file="$(find imu_interpreter)/launch/imu_interpreter.launch"/>
+
   <include file="$(find realsense2_camera)/launch/rs_camera.launch">
     <!-- <arg name="serial_no"             value="939622074873"/> -->
     <arg name="tf_prefix"           	value="rs_front"/>
@@ -26,6 +28,6 @@
 
   <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="camera_to_footprint_broadcaster" args="0.249 0.045 0.098 1.570796 0 -2.3038346 rs_front_link oriented_footprint"/> -->
   <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_rs_front_broadcaster" args="0.25 0 0.24 0 0.7679 0 base_link rs_front_link"/>
-  <node pkg="tf2_ros" type="static_transform_publisher" name="orientation_broadcaster" args="0 0 0  0 0.1 0 upright base_link"/>
+  <!-- <node pkg="tf2_ros" type="static_transform_publisher" name="orientation_broadcaster" args="0 0 0  0 0.1 0 upright base_link"/> -->
 
 </launch>

@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <launch>
-  <node name="imu_interpreter" pkg="imu_interpreter" type="imu_interpreter.py" output="screen"/>
+  <node name="imu_interpreter" pkg="imu_interpreter" type="imu_interpreter.py" output="screen">
+    <remap from="/imu/data" to="/camera/accel/sample"/>
+  </node>
 </launch>
