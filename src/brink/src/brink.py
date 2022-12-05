@@ -206,7 +206,6 @@ class Brinkmanship:
             slopes[yI, xI] = np.mean(cellAngles)
             counts[yI, xI] = inds.shape[0]
         degrees = np.rad2deg(slopes)
-        print(degrees)
         mapSlopes = slopeToInt8(degrees)
         mapFlat = mapSlopes.flatten()
 
@@ -217,11 +216,16 @@ class Brinkmanship:
         gridMsg.data = mapFlat
         map_pub.publish(gridMsg)
 
-        goodLines = np.nonzero(np.sum(counts, axis=1))
+        goodLines = np.sum(counts, axis=1) > 1
         valid = slopes[goodLines,:]
-        safe = degrees > MAX_SLOPE & counts == 0
+        safe = np.logical_and(degrees < MAX_SLOPE, counts != 0)
         distances = x_bins[np.argmax(safe, axis=1)]
         brink_range = distances.min()
+        # print(degrees)
+        # print(goodLines)
+        # print(valid)
+        # print(safe)
+        # print(distances)
 
         self.pubRange(brink_range)
 
