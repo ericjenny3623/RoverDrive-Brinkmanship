@@ -32,7 +32,7 @@ x_min = 0.0
 x_max = 1.5
 width = x_max - x_min
 
-cell_size = 1/16
+cell_size = 1./16.
 numY = np.ceil(height/cell_size).astype(int)
 y_bins = np.linspace(0., height, num=numY) - height*0.5
 
