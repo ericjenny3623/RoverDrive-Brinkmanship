@@ -26,6 +26,7 @@ class IMUInterpreter:
         elif imuDataType == "quat":
             cb = self.callback_quat
         self.sub = rospy.Subscriber(imuTopic, Imu, cb)
+        print("IMU INTERP RUNNING +++++++++++++")
 
     def sendTF(self, q):
         self.br.sendTransform((0, 0, 0),
@@ -59,6 +60,8 @@ class IMUInterpreter:
 
         # This might be backwards?
         self.sendTF(quaternion_from_euler(roll_ave, pitch_ave, yaw_ave))
+        print("IMU INTERP PUBLISHING TF +++++++++++++")
+
 
     def callback_accel(self, msg):
         gx = msg.linear_acceleration.x
