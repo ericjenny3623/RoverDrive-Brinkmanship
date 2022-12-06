@@ -135,7 +135,7 @@ int main(int argc, char** argv) {
 	    break;
         }
       } else if(event.isAxis()) {
-        fmt::print("Axis {} is {}.\n", event.number, event.value);
+        // fmt::print("Axis {} is {}.\n", event.number, event.value);
         switch (event.number) {
           case LEFT_JOY_X: // Left Joystick X-Axis
             joy_x = event.value / (double)JoystickEvent::MAX_AXES_VALUE;

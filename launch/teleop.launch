@@ -12,6 +12,8 @@
   <!-- Launch the static transforms for the pitranger rover -->
   <include file="$(find config)/launch/tf.launch"/>
 
+  <include file="$(find imu_interpreter)/launch/imu_interpreter.launch"/>
+
   <!-- Launch the IMU. -->
   <include file="$(find xsens_mti_driver)/launch/xsens_mti_node.launch"/>
 
@@ -24,9 +26,9 @@
   <include file="$(find config)/launch/rs.launch"/>
 
   <!-- Launch brinkmanship! -->
-  <!--node pkg="brink" type="brink.py" name="brink" output="screen" respawn="true">
+  <node pkg="brink" type="brink.py" name="brink" output="screen" respawn="true">
     <remap from="/brink/in/cloud" to="/rs_front/camera/depth/color/points"/>
-  </node-->
+  </node>
 
   <!-- Rosbag record -->
  <group if="$(arg bag)">
