@@ -2,6 +2,6 @@
 
 <launch>
   <node name="imu_interpreter" pkg="imu_interpreter" type="imu_interpreter.py" output="screen">
-    <remap from="/imu/data" to="/camera/accel/sample"/>
+    <remap from="/imu/data" to="/xsens/data"/>
   </node>
 </launch>

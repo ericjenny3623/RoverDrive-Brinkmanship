@@ -102,7 +102,7 @@ class IMUInterpreter:
 if __name__=="__main__":
     rospy.init_node('imu_interpreter')
     imuInterp = IMUInterpreter(imuTopic = "imu/data",
-                               imuDataType = "accel", # quat / accel
+                               imuDataType = "quat", # quat / accel
                                robotFrame = "rs_front_link", # rs_front_link for testing only!
                                verticalFrame = "rs_front_link_upright", # Use upright / base_link on robot
                                disp = True)
