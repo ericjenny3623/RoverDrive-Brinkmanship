@@ -331,8 +331,6 @@ PitCamera::ImageRGB PitCamera::capture(int exposure_us) {
       }
     }
 
-    stop_acquisition();
-
     if( retry >= num_retries ) {
       // If we used all our retries, throw an exception.
       auto msg = fmt::format("PitCam failed to capture a complete image after {} attempts.", num_retries);

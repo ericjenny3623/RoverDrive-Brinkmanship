@@ -15,21 +15,18 @@ int main(int argc, char** argv) {
   int exposure = std::atoi(argv[3]);
 
   pr::PanTiltController ptu;
-  std::cout << "Trying to set pan to " << pan << '\n';
-  ptu.set_pan_deg(pan);
-  std::cout << "Trying to set tilt to " << tilt << '\n';
-  ptu.set_tilt_deg(tilt);
-
-  std::cout << "Connecting to PitCam\n";
   pr::PitCamera cam;
+
+  ptu.set_pan_deg(pan);
+  ptu.set_tilt_deg(tilt);
 
   if( exposure == 0 ) {
     exposure = cam.get_autoexposure();
   }
 
   auto image = cam.capture(exposure);
-  std::cout << "Pan:  " << ptu.get_pan_deg() << '\n';
-  std::cout << "Tilt: " << ptu.get_tilt_deg() << '\n';
+  std::cout << "Pan:  " << pan << '\n';
+  std::cout << "Tilt: " << tilt << '\n';
   std::cout << "Exposure: " << cam.get_exposure() << '\n';
 
   if( argc == 5 ) {
