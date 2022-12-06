@@ -377,6 +377,6 @@ class Brinkmanship:
 if __name__=="__main__":
     rospy.init_node('brink')
 
-    brink = Brinkmanship(odom_frame_id='base_link', filter_size=[0.025,0.025,0.025])
+    brink = Brinkmanship(odom_frame_id='upright', filter_size=[0.025,0.025,0.025])
 
     rospy.spin()
