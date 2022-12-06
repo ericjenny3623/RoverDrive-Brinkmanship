@@ -75,20 +75,6 @@ std::pair<double,double> joy2twist(double joy_x, double joy_y) {
   return std::make_pair(lin, ang);
 }
 
-bool set_pan_tilt(ros::ServiceClient& client, int pan, int tilt) {
-  pitranger::SetPanTilt srv;
-  srv.request.pan_deg = pan;
-  srv.request.tilt_deg = tilt;
-  return client.call(srv);
-}
-
-pitranger::PitCamCapture::Response pitcam_capture(ros::ServiceClient& client) {
-  pitranger::PitCamCapture srv;
-  srv.request.exposure_us = 0; // Use autoexposure.
-  client.call(srv);
-  return srv.response;
-}
-
 void save_png(pitranger::PitCamCapture::Response& resp) {
   static int count = 0;
   std::string fname = fmt::format("teleop-{}_{}_{}_{}.jpg", count++, resp.exposure_us, resp.pan_deg, resp.tilt_deg);
@@ -115,18 +101,6 @@ int main(int argc, char** argv) {
   double joy_y = 0;
   double speed_mps = max_speed_mps;
 
-  auto set_pan_tilt_client = nh.serviceClient<pitranger::SetPanTilt>("pitcam/set_pan_tilt");
-  set_pan_tilt_client.waitForExistence();
-  
-  auto capture_client = nh.serviceClient<pitranger::PitCamCapture>("pitcam/capture");
-  capture_client.waitForExistence();
-
-  int  pan_idx = 4;
-  int tilt_idx = 5;
-  std::vector<int> pans {-60, -45, -30, -15, 0, 15, 30, 45, 60};
-  std::vector<int> tilts {-70, -60, -50, -40, -30, -20, -10, 0, 30, 60, 90};
-  set_pan_tilt(set_pan_tilt_client, pans[pan_idx], tilts[tilt_idx]);
-
   ros::Rate rate(30);
   while(ros::ok()) {
     JoystickEvent event;
@@ -147,7 +121,7 @@ int main(int argc, char** argv) {
 
     if(valid_event) {
       if(event.isButton()) {
-        //fmt::print("Button {} is {}.\n", event.number, event.value == 0 ? "up":"down");
+        fmt::print("Button {} is {}.\n", event.number, event.value == 0 ? "up":"down");
         switch (event.number) {
           case TRIGGER_ZL:
             turbo_gear = event.value ? turbo_gear1 : turbo_gear0;
@@ -157,14 +131,11 @@ int main(int argc, char** argv) {
             break;
 	  case BUTTON_HOME:
 	    if(event.value) {
-              auto img = pitcam_capture(capture_client);
-              fmt::print("Received image with dimensions {}x{}\n", img.image.width, img.image.height);
-              save_png(img);
 	    }
 	    break;
         }
       } else if(event.isAxis()) {
-        //fmt::print("Axis {} is {}.\n", event.number, event.value);
+        fmt::print("Axis {} is {}.\n", event.number, event.value);
         switch (event.number) {
           case LEFT_JOY_X: // Left Joystick X-Axis
             joy_x = event.value / (double)JoystickEvent::MAX_AXES_VALUE;
@@ -173,14 +144,8 @@ int main(int argc, char** argv) {
             joy_y = -1 * event.value / (double)JoystickEvent::MAX_AXES_VALUE;
             break;
           case DPAD_X:
-            if(event.value < 0) { pan_idx = std::max<int>(pan_idx-1, 0); }
-            else if(event.value > 0) { pan_idx = std::min<int>(pan_idx+1, pans.size()-1); }
-            set_pan_tilt(set_pan_tilt_client, pans[pan_idx], tilts[tilt_idx]);
             break;
           case DPAD_Y:
-            if(event.value < 0) { tilt_idx = std::max<int>(tilt_idx-1, 0); }
-            else if(event.value > 0) { tilt_idx = std::min<int>(tilt_idx+1, tilts.size()-1); }
-            set_pan_tilt(set_pan_tilt_client, pans[pan_idx], tilts[tilt_idx]);
             break;
         }
       }
@@ -194,7 +159,6 @@ int main(int argc, char** argv) {
       twist_pub.publish(msg);
 
     }
-
     ros::spinOnce();
     rate.sleep();
   }

@@ -119,28 +119,12 @@ add_executable(pitranger_node
 
 add_subdirectory(libs/roboteq)
 
-add_executable(pitcam_util
-  src/pitcam_util.cpp
-  src/pr_utils/pr_pitcam.cpp
-  src/pr_utils/pr_ptu.cpp
-)
-target_link_libraries(pitcam_util roboteq fmt ${Spinnaker_LIBRARIES})
-
-## Declare a C++ executable
-add_executable(pitcam_node
-  src/pitcam_node.cpp
-  src/pr_utils/pr_ptu.cpp
-  src/pr_utils/pr_pitcam.cpp
-)
-
 ## Rename C++ executable without prefix
 set_target_properties(pitranger_node PROPERTIES OUTPUT_NAME pitranger PREFIX "")
-set_target_properties(pitcam_node PROPERTIES OUTPUT_NAME pitcam PREFIX "")
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
 add_dependencies(pitranger_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-add_dependencies(pitcam_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(pitranger_node
@@ -148,12 +132,4 @@ target_link_libraries(pitranger_node
   roboteq
   fmt
   stdc++fs
-)
-target_link_libraries(pitcam_node
-  ${catkin_LIBRARIES}
-  ${Spinnaker_LIBRARIES}
-  roboteq
-  fmt
-  stdc++fs
-  Eigen3::Eigen
 )

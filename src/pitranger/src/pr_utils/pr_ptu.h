@@ -33,16 +33,18 @@ constexpr int PTU_PAN_ENCODER_ANALOG_INPUT      = 2;
 constexpr int PTU_PAN_FWD_LIMIT_DIGITAL_INPUT   = 4;
 constexpr int PTU_PAN_REV_LIMIT_DIGITAL_INPUT   = 3;
 
-constexpr int    PTU_PAN_ENCODER_MIN        = 1600;
-constexpr int    PTU_PAN_ENCODER_CENTER     = 2270;
-constexpr int    PTU_PAN_ENCODER_MAX        = 3000;
+// NOTE(Jordan): Aug. 8 pan calibration
+constexpr int    PTU_PAN_CALIBRATION_OFFSET = -100;
+constexpr int    PTU_PAN_ENCODER_MIN        = 1600+PTU_PAN_CALIBRATION_OFFSET;
+constexpr int    PTU_PAN_ENCODER_CENTER     = 2270+PTU_PAN_CALIBRATION_OFFSET;
+constexpr int    PTU_PAN_ENCODER_MAX        = 3000+PTU_PAN_CALIBRATION_OFFSET;
 
 constexpr double PTU_PAN_MIN_DEG            = -67.0;
 constexpr double PTU_PAN_CENTER_DEG         =   0.0;
 constexpr double PTU_PAN_MAX_DEG            =  67.0;
 
 constexpr int    PTU_PAN_MOTOR_RPM          = 50;
-constexpr double PTU_PAN_PID[]              = {3.0, 0.1, 1.6};
+constexpr double PTU_PAN_PID[]              = {3.0, 0.0, 0.0};
 constexpr int    PTU_PAN_DEFAULT_CMD        = PTU_PAN_ENCODER_MIN;
 constexpr int    PTU_PAN_CHANNEL            = 2;
 
@@ -59,7 +61,7 @@ class PanTiltController {
         [[nodiscard]] int get_pan_deg();
         [[nodiscard]] int get_tilt_deg();
 
-    private:
+    //private:
         RoboteqDevice device;
         int pan_cmd  =  PTU_PAN_DEFAULT_CMD;
         int tilt_cmd = PTU_TILT_DEFAULT_CMD;

@@ -4,13 +4,13 @@
 
   <!-- Record a bag file! -->
   <arg name="bag" default="false"/>
-  <arg name="name" default="utah_"/>
+  <arg name="name" default="teleop_"/>
+
+  <!-- Launch the joystick teleop node. -->
+  <node name="teleop" pkg="teleop" type="teleop_node" output="screen"/>
 
   <!-- Launch the static transforms for the pitranger rover -->
   <include file="$(find config)/launch/tf.launch"/>
-
-  <!-- Launch the GPS -->
-  <include file="$(find swiftnav_ros)/launch/swiftnav_ros.launch"/>
 
   <!-- Launch the IMU. -->
   <include file="$(find xsens_mti_driver)/launch/xsens_mti_node.launch"/>
@@ -20,24 +20,16 @@
     <remap from="/pitranger/in/twist_cmd" to="teleop/out/twist_cmd"/>
   </node>
 
-  <!-- Launch pitcam. -->
-  <node name="pitcam" pkg="pitranger" type="pitcam" output="screen" respawn="true">
-    <remap from="/pitranger/in/twist_cmd" to="teleop/out/twist_cmd"/>
-  </node>
-
-  <!-- Launch the localization node -->
-  <node name="whereami" pkg="whereami" type="whereami_node.py" output="screen" respawn="false"/>
-
   <!-- Launch the realsenses. -->
   <include file="$(find config)/launch/rs.launch"/>
 
   <!-- Launch brinkmanship! -->
-  <node pkg="brink" type="brink.py" name="brink" output="screen" respawn="true">
+  <!--node pkg="brink" type="brink.py" name="brink" output="screen" respawn="true">
     <remap from="/brink/in/cloud" to="/rs_front/camera/depth/color/points"/>
-  </node>
+  </node-->
 
   <!-- Rosbag record -->
-  <group if="$(arg bag)">
+ <group if="$(arg bag)">
     <node pkg="rosbag" type="record" name="rosbag_record" output="log"
       args="record --lz4 -o /home/pitranger/Bags/$(arg name) -a"/>
   </group>
