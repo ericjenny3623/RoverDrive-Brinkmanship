@@ -104,7 +104,7 @@ class Brinkmanship:
         tf = self.tf_source.lookup(odom_frame_id, camera_frame_id)
 
         if tf is None:
-            print(f"Brinkmanship failed to find transform from {camera_frame_id} to {odom_frame_id}.")
+            print("Brinkmanship failed to find transform from %s to %s." % (camera_frame_id, odom_frame_id))
             # Better handle this...
             return None
 
