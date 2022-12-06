@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import rospy
 from sensor_msgs.msg import PointCloud2
-from std_msgs.msg import Float64
-from geometry_msgs.msg import PolygonStamped, Point, Point32
+from std_msgs.msg import Float64, Header
+from geometry_msgs.msg import PolygonStamped, Point, Point32, Pose
 from visualization_msgs.msg import Marker
+from nav_msgs.msg import OccupancyGrid, MapMetaData
 import time
 
 import tf2_ros
@@ -21,6 +22,39 @@ hull_pub = rospy.Publisher('/brink/out/hull', PolygonStamped, queue_size=10)
 lines_pub = rospy.Publisher('/brink/out/lines', Marker, queue_size=10)
 range_pub = rospy.Publisher('/brink/out/range', Float64, queue_size=10)
 range_text_pub = rospy.Publisher('/brink/out/range_text', Marker, queue_size=10)
+tidied_pub = rospy.Publisher('/brink/out/tidied', PointCloud2, queue_size=10)
+map_pub = rospy.Publisher('/brink/out/slope_map', OccupancyGrid, queue_size=10)
+
+# X is going away from camera, Y to left
+height = 1.0  # m
+
+x_min = 0.0
+x_max = 1.5
+width = x_max - x_min
+
+cell_size = 1/16
+numY = np.ceil(height/cell_size).astype(int)
+y_bins = np.linspace(0., height, num=numY) - height*0.5
+
+numX = np.ceil(width/cell_size).astype(int)
+x_bins = np.linspace(x_min, x_max, num=numX)
+
+m = MapMetaData()
+m.resolution = cell_size
+m.width = numX
+m.height = numY
+m.origin = Pose()
+m.origin.position.x = x_bins[0]
+m.origin.position.y = y_bins[0]
+map_meta_data = m
+
+MAX_SLOPE = 10.0 # degrees
+
+def int8ToSlope(x):
+    return x.astype(float) - 50 * 0.5
+
+def slopeToInt8(x):
+    return np.clip((x * 2 + 50).astype(int), -128, 127)
 
 class tfSource:
     def __init__(self):
@@ -42,7 +76,6 @@ class Brinkmanship:
         self.tf_source = tfSource()
         self.odom_frame_id = odom_frame_id
         self.filter_size = filter_size
-
         self.cloud_sub = rospy.Subscriber('/brink/in/cloud', PointCloud2, self.cloud_handler)
 
     def msg2np(self, msg):
@@ -66,22 +99,26 @@ class Brinkmanship:
         return msg
 
     def orient_cloud(self, pts, odom_frame_id, camera_frame_id):
+        """ This is supposed to transform the points into the frame of the robot? """
+        # If so, we really want to transform points from camera to robot-world oriented
         tf = self.tf_source.lookup(odom_frame_id, camera_frame_id)
+
+        if tf is None:
+            print(f"Brinkmanship failed to find transform from {camera_frame_id} to {odom_frame_id}.")
+            # Better handle this...
+            return None
 
         R = tf[0].rotation_matrix
         T = tf[1]
 
-        if tf is None:
-            print("Brinkmanship failed to find transform from camera to odom.")
-            # Better handle this...
-            return None
-
         h = pts.shape[0]
         w = pts.shape[1]
-        pts = pts.reshape((w*h, 3))
+        # NOTE: Seems like this was designed for an ordered PC, but maybe the voxel grid
+        # filter unorders things (or its just to_array causing the issue``)
+        # pts = pts.reshape((w*h, 3))
         pts = np.dot(R, pts.transpose()).transpose()
         pts += T
-        pts = pts.reshape((h,w,3))
+        # pts = pts.reshape((h,w,3))
         return pts
 
     def ray_plane_intersection(self, ray_orig, ray_dir, coeffs):
@@ -125,7 +162,73 @@ class Brinkmanship:
 
         # Give up if the point cloud is empty
         if pcl_pts.size < 10:
-          return
+            # print("PC empty")
+            return
+
+        oriented_pts = self.orient_cloud(pcl_pts.to_array(), self.odom_frame_id, camera_frame_id)
+        if oriented_pts is None:
+            return
+        oriented_pcl = pcl.PointCloud()
+        oriented_pcl.from_array(oriented_pts.astype(np.float32))
+        tidied_msg = self.np2msg(oriented_pts)
+        tidied_msg.header = msg.header
+        tidied_msg.header.frame_id = self.odom_frame_id
+        tidied_pub.publish(tidied_msg)
+
+        # https://pcl.readthedocs.io/en/latest/normal_estimation.html#normal-estimation
+        # Compute normals (slope) of downsampled point cloud
+        # TODO: maybe this should be ran on the non downsampled PC
+        search_radius = 0.15;
+        norm = oriented_pcl.make_NormalEstimation()
+        tree = oriented_pcl.make_kdtree()
+        norm.set_SearchMethod(tree)
+        norm.set_RadiusSearch(search_radius)
+        normals = norm.compute().to_array()
+        #angle with respect to z unit vector
+        angles = np.arccos(normals[:, 2] / np.linalg.norm(normals[:,:3], axis=1))
+
+        xInds = np.digitize(oriented_pts[:,0], x_bins)
+        yInds = np.digitize(oriented_pts[:,1], y_bins)
+
+        # Save our slopes in a map
+        slopes = np.zeros((numY, numX))
+        counts = np.zeros_like(slopes)
+
+        # Bin the slopes by the pts positions
+        for xI, yI in zip(xInds, yInds):
+            if xI >= numX or yI >= numY or counts[yI, xI] != 0:
+                continue
+
+            inds = np.logical_and(xInds == xI, yInds == yI)
+            inds = np.logical_and(inds, np.logical_not(np.isnan(angles)))
+
+            cellAngles = angles[inds]
+            slopes[yI, xI] = np.mean(cellAngles)
+            counts[yI, xI] = inds.shape[0]
+        degrees = np.rad2deg(slopes)
+        mapSlopes = slopeToInt8(degrees)
+        mapFlat = mapSlopes.flatten()
+
+        # Publish the map
+        gridMsg = OccupancyGrid()
+        gridMsg.header = tidied_msg.header
+        gridMsg.info = map_meta_data
+        gridMsg.data = mapFlat
+        map_pub.publish(gridMsg)
+
+        goodLines = np.sum(counts, axis=1) > 1
+        valid = degrees[goodLines,:]
+        validCells = counts[goodLines, :] != 0
+        safe = np.logical_and(valid < MAX_SLOPE, validCells)
+        minDists = np.argmax(safe, axis=1)
+        cols = np.indices(valid.shape)[1]
+        safe[cols < minDists[:,None]] = True # Extend safe to closer
+        distances = x_bins[np.argmin(safe, axis=1)]
+        brink_range = distances.min()
+        self.pubRange(brink_range)
+
+    def brinkOld(self, pcl_pts, msg):
+        camera_frame_id = msg.header.frame_id
 
         # RANSAC fit a plane
         seg = pcl_pts.make_segmenter_normals(ksearch=50)
@@ -222,55 +325,58 @@ class Brinkmanship:
         lines_pub.publish(lines_msg)
 
         try:
-          # Publish the estimated range to a brink.
-          dists = [np.linalg.norm(np.array([l[0][0]-l[1][0],l[0][1]-l[1][1]])) for l in lines]
-          brink_range = np.min(dists)
-          range_pub.publish(brink_range)
-          
-          # Publish a string version of the estimated range to a brink (for rviz).
-          range_text_msg = Marker()
-          range_text_msg.header.frame_id = "base_link"
-          range_text_msg.type = 9
+            # Publish the estimated range to a brink.
+            dists = [np.linalg.norm(np.array([l[0][0]-l[1][0],l[0][1]-l[1][1]])) for l in lines]
+            brink_range = np.min(dists)
 
-          # Normally white.
-          range_text_msg.color.r = 1.0;
-          range_text_msg.color.g = 1.0;
-          range_text_msg.color.b = 1.0;
-          range_text_msg.color.a = 1.0;
-      
-          # Yellow if getting worried. Red if way too close!
-          if brink_range < 0.2:
-            range_text_msg.color.g = 0.0;
-            range_text_msg.color.b = 0.0;
-          elif brink_range < 0.5:
-            range_text_msg.color.b = 0.0
+            self.pubRange(brink_range)
 
-          range_text_msg.scale.z = 0.25;
-          range_text_msg.pose.position.z = 1.5;
-          range_text_msg.text = "BRINK: {:03f} m".format(brink_range)
-          range_text_pub.publish(range_text_msg)
+            # Put 2d alpha shape back in the camera_frame and publish it as a polygon.
+            hull_msg = PolygonStamped()
+            hull_msg.header = msg.header
+            hull_msg.header.frame_id = camera_frame_id
 
-          # Put 2d alpha shape back in the camera_frame and publish it as a polygon.
-          hull_msg = PolygonStamped()
-          hull_msg.header = msg.header
-          hull_msg.header.frame_id = camera_frame_id
-
-          xs = concave_hull.exterior.coords.xy[0]
-          ys = concave_hull.exterior.coords.xy[1]
-          for x,y in zip(xs,ys):
-              xyz = np.array([x,y,0]).transpose()
-              xyz = xyz.dot(inv_basis)
-              xyz += orig
-              hull_msg.polygon.points.append(Point32(xyz[0], xyz[1], xyz[2]))
-          hull_pub.publish(hull_msg)
+            xs = concave_hull.exterior.coords.xy[0]
+            ys = concave_hull.exterior.coords.xy[1]
+            for x, y in zip(xs, ys):
+                xyz = np.array([x, y, 0]).transpose()
+                xyz = xyz.dot(inv_basis)
+                xyz += orig
+                hull_msg.polygon.points.append(Point32(xyz[0], xyz[1], xyz[2]))
+            hull_pub.publish(hull_msg)
         except:
             pass
 
+    def pubRange(self, brink_range):
+        range_pub.publish(brink_range)
+
+        # Publish a string version of the estimated range to a brink (for rviz).
+        range_text_msg = Marker()
+        range_text_msg.header.frame_id = "base_link"
+        range_text_msg.type = 9
+
+        # Normally white.
+        range_text_msg.color.r = 1.0
+        range_text_msg.color.g = 1.0
+        range_text_msg.color.b = 1.0
+        range_text_msg.color.a = 1.0
+
+        # Yellow if getting worried. Red if way too close!
+        if brink_range < 0.2:
+            range_text_msg.color.g = 0.0
+            range_text_msg.color.b = 0.0
+        elif brink_range < 0.5:
+            range_text_msg.color.b = 0.0
+
+        range_text_msg.scale.z = 0.25
+        range_text_msg.pose.position.z = 1.0
+        range_text_msg.text = "BRINK: {:03f} m".format(brink_range)
+        range_text_pub.publish(range_text_msg)
 
 
 if __name__=="__main__":
     rospy.init_node('brink')
 
-    brink = Brinkmanship(odom_frame_id='odom', filter_size=[0.1,0.1,0.1])
+    brink = Brinkmanship(odom_frame_id='base_link', filter_size=[0.025,0.025,0.025])
 
     rospy.spin()
