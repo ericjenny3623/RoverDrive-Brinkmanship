@@ -26,7 +26,7 @@ tidied_pub = rospy.Publisher('/brink/out/tidied', PointCloud2, queue_size=10)
 map_pub = rospy.Publisher('/brink/out/slope_map', OccupancyGrid, queue_size=10)
 
 # X is going away from camera, Y to left
-height = 1.0  # m
+height = 0.5  # m
 
 x_min = 0.0
 x_max = 1.5
@@ -178,14 +178,16 @@ class Brinkmanship:
         # https://pcl.readthedocs.io/en/latest/normal_estimation.html#normal-estimation
         # Compute normals (slope) of downsampled point cloud
         # TODO: maybe this should be ran on the non downsampled PC
-        search_radius = 0.15;
+        search_radius = 0.05;
         norm = oriented_pcl.make_NormalEstimation()
         tree = oriented_pcl.make_kdtree()
         norm.set_SearchMethod(tree)
         norm.set_RadiusSearch(search_radius)
         normals = norm.compute().to_array()
         #angle with respect to z unit vector
-        angles = np.arccos(normals[:, 2] / np.linalg.norm(normals[:,:3], axis=1))
+        coss = normals[:, 2] / np.linalg.norm(normals[:,:3], axis=1)
+        coss[coss < 0] *= -1.
+        angles = np.arccos(coss)
 
         xInds = np.digitize(oriented_pts[:,0], x_bins)
         yInds = np.digitize(oriented_pts[:,1], y_bins)
@@ -226,6 +228,8 @@ class Brinkmanship:
         distances = x_bins[np.argmin(safe, axis=1)]
         brink_range = distances.min()
         self.pubRange(brink_range)
+        print(valid)
+        print(distances)
 
     def brinkOld(self, pcl_pts, msg):
         camera_frame_id = msg.header.frame_id

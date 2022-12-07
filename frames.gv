@@ -1,0 +1,19 @@
+digraph G {
+"base_link" -> "rs_back_link"[label="Broadcaster: /base_to_rs_back_broadcaster\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1670368498.446 sec old)\nBuffer length: 0.000 sec\n"];
+"base_link" -> "imu_link"[label="Broadcaster: /base_to_imu_broadcaster\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1670368498.446 sec old)\nBuffer length: 0.000 sec\n"];
+"rs_front_link_upright" -> "rs_front_link"[label="Broadcaster: /imu_interpreter\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1670368498.446 sec old)\nBuffer length: 0.000 sec\n"];
+"base_link" -> "gps"[label="Broadcaster: /base_to_gps_broadcaster\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1670368498.446 sec old)\nBuffer length: 0.000 sec\n"];
+"rs_front_link" -> "rs_front_depth_frame"[label="Broadcaster: /rs_front/camera/realsense2_camera_manager\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1670368498.446 sec old)\nBuffer length: 0.000 sec\n"];
+"rs_front_depth_frame" -> "rs_front_depth_optical_frame"[label="Broadcaster: /rs_front/camera/realsense2_camera_manager\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1670368498.446 sec old)\nBuffer length: 0.000 sec\n"];
+"rs_front_link" -> "rs_front_color_frame"[label="Broadcaster: /rs_front/camera/realsense2_camera_manager\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1670368498.446 sec old)\nBuffer length: 0.000 sec\n"];
+"rs_front_aligned_depth_to_color_frame" -> "rs_front_color_optical_frame"[label="Broadcaster: /rs_front/camera/realsense2_camera_manager\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1670368498.446 sec old)\nBuffer length: 0.000 sec\n"];
+"rs_front_link" -> "rs_front_aligned_depth_to_color_frame"[label="Broadcaster: /rs_front/camera/realsense2_camera_manager\nAverage rate: 10000.000 Hz\nMost recent transform: 0.000 ( 1670368498.446 sec old)\nBuffer length: 0.000 sec\n"];
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1670368498.446"[ shape=plaintext ] ;
+ }->"base_link";
+edge [style=invis];
+ subgraph cluster_legend { style=bold; color=black; label ="view_frames Result";
+"Recorded at time: 1670368498.446"[ shape=plaintext ] ;
+ }->"rs_front_link_upright";
+}

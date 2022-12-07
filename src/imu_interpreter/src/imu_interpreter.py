@@ -42,7 +42,7 @@ class IMUInterpreter:
         roll, pitch, yaw = euler_from_quaternion([qx, qy, qz, qw])
 
         # Filter to remove noise (xsens might already do some of this!?)
-        orientations = self.updateMovingAverage([roll, pitch, yaw])
+        orientations = self.updateMovingAverage([-roll, -pitch, yaw*0.0])
         roll_ave = orientations[0]
         pitch_ave = orientations[1]
         yaw_ave = orientations[2]
